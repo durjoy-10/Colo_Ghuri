@@ -7,11 +7,15 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import DestinationForm from '../../components/tours/DestinationForm';
-import { FaPlus, FaEdit, FaTrash, FaImage, FaUpload, FaTimes, FaStar, FaLock, FaMapMarkerAlt, FaUtensils } from 'react-icons/fa';
+import { 
+    FaPlus, FaEdit, FaTrash, FaImage, FaUpload, FaTimes, FaStar, FaLock, 
+    FaMapMarkerAlt, FaInfoCircle, FaMoneyBillWave, FaUsers, FaCalendarAlt, 
+    FaUtensils, FaChartLine
+} from 'react-icons/fa';
 import { TOUR_STATUS } from '../../utils/constants';
 import toast from 'react-hot-toast';
 import axios from '../../api/axios';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatDate } from '../../utils/formatters';
 
 const ManageTours = () => {
     const { get, put, del, loading } = useApi();
@@ -20,8 +24,10 @@ const ManageTours = () => {
     const [showModal, setShowModal] = useState(false);
     const [showImageModal, setShowImageModal] = useState(false);
     const [showItineraryModal, setShowItineraryModal] = useState(false);
+    const [showInfoModal, setShowInfoModal] = useState(false);
     const [selectedTour, setSelectedTour] = useState(null);
     const [selectedTourForItinerary, setSelectedTourForItinerary] = useState(null);
+    const [selectedTourForInfo, setSelectedTourForInfo] = useState(null);
     const [editingTour, setEditingTour] = useState(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [tourImages, setTourImages] = useState([]);
@@ -322,13 +328,19 @@ const ManageTours = () => {
         
         if (window.confirm(`Are you sure you want to delete "${tourName}"? This action cannot be undone.`)) {
             try {
-                const result = await del(`/tours/${id}/delete/`);
-                console.log('Delete result:', result);
-                toast.success('Tour deleted successfully');
-                await fetchTours();
+                const token = localStorage.getItem('accessToken');
+                const response = await axios.delete(`/tours/${id}/delete/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.data) {
+                    toast.success('Tour deleted successfully');
+                    await fetchTours();
+                }
             } catch (error) {
                 console.error('Delete error:', error);
-                toast.error(error.response?.data?.error || 'Failed to delete tour');
+                const errorMsg = error.response?.data?.error || 'Failed to delete tour';
+                toast.error(errorMsg);
             }
         }
     };
@@ -356,6 +368,11 @@ const ManageTours = () => {
         }
         setSelectedTourForItinerary(tour);
         setShowItineraryModal(true);
+    };
+
+    const openInfoModal = (tour) => {
+        setSelectedTourForInfo(tour);
+        setShowInfoModal(true);
     };
 
     if (!isGuideVerified) {
@@ -404,6 +421,10 @@ const ManageTours = () => {
                             }
                         }
                         
+                        // Calculate booked seats and revenue for display
+                        const bookedSeats = tour.booked_seats || 0;
+                        const revenue = tour.total_revenue || 0;
+                        
                         return (
                             <div key={tour.tour_id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
                                 <div className="relative h-48 bg-gray-200">
@@ -444,6 +465,21 @@ const ManageTours = () => {
                                         </span>
                                     </div>
                                     <p className="text-gray-600 text-sm mt-2 line-clamp-2">{tour.description}</p>
+                                    
+                                    {/* Quick Stats for completed tours */}
+                                    {tour.is_locked && (
+                                        <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                                            <div className="flex justify-between text-xs">
+                                                <span className="text-gray-500">Booked Seats:</span>
+                                                <span className="font-semibold text-green-600">{bookedSeats} / {tour.total_seats}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs mt-1">
+                                                <span className="text-gray-500">Revenue:</span>
+                                                <span className="font-semibold text-blue-600">{formatCurrency(revenue)}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
                                     <div className="mt-3 flex justify-between items-center">
                                         <div className="text-sm">
                                             <span className="text-gray-500">Seats: </span>
@@ -457,7 +493,8 @@ const ManageTours = () => {
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap justify-end gap-2 mt-3 pt-3 border-t">
-                                        {!tour.is_locked && (
+                                        {!tour.is_locked ? (
+                                            // Buttons for non-completed tours
                                             <>
                                                 <button 
                                                     onClick={() => handleEdit(tour)} 
@@ -471,15 +508,22 @@ const ManageTours = () => {
                                                 >
                                                     <FaMapMarkerAlt size={14} /> Itinerary
                                                 </button>
+                                                <button 
+                                                    onClick={() => handleDelete(tour.tour_id, tour.tour_name)} 
+                                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 text-sm"
+                                                >
+                                                    <FaTrash size={14} /> Delete
+                                                </button>
                                             </>
+                                        ) : (
+                                            // Buttons for completed tours - Only Info button
+                                            <button 
+                                                onClick={() => openInfoModal(tour)} 
+                                                className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 text-sm"
+                                            >
+                                                <FaInfoCircle size={14} /> Info
+                                            </button>
                                         )}
-                                        <button 
-                                            onClick={() => handleDelete(tour.tour_id, tour.tour_name)} 
-                                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 text-sm"
-                                            disabled={tour.is_locked}
-                                        >
-                                            <FaTrash size={14} /> Delete
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -616,10 +660,13 @@ const ManageTours = () => {
                     {editingTour && (
                         <div className="p-3 bg-blue-50 rounded-lg">
                             <p className="text-sm text-blue-800">
-                                <strong>Tour Revenue:</strong> {formatCurrency(editingTour.total_revenue || 0)}
+                                <strong>Current Revenue:</strong> {formatCurrency(editingTour.total_revenue || 0)}
                             </p>
                             <p className="text-sm text-blue-800 mt-1">
                                 <strong>Estimated Profit:</strong> {formatCurrency((editingTour.total_revenue || 0) - (parseFloat(expenses) || 0))}
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                                (Based on {editingTour.booked_seats || 0} booked seats × {formatCurrency(editingTour.final_price)})
                             </p>
                         </div>
                     )}
@@ -736,6 +783,125 @@ const ManageTours = () => {
                     }}
                 />
             )}
+
+            {/* Tour Info Modal for Completed Tours */}
+            <Modal isOpen={showInfoModal} onClose={() => { setShowInfoModal(false); setSelectedTourForInfo(null); }} title={`Tour Information: ${selectedTourForInfo?.tour_name}`} size="lg">
+                {selectedTourForInfo && (
+                    <div className="space-y-6">
+                        {/* Basic Information */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-xs text-gray-500">Tour Name</p>
+                                <p className="font-semibold">{selectedTourForInfo.tour_name}</p>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-xs text-gray-500">Status</p>
+                                <p className="font-semibold capitalize text-green-600">Completed</p>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                            <p className="text-xs text-gray-500">Description</p>
+                            <p className="text-sm mt-1">{selectedTourForInfo.description}</p>
+                        </div>
+
+                        {/* Financial Information */}
+                        <div>
+                            <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
+                                <FaMoneyBillWave className="text-primary-600" /> Financial Summary
+                            </h3>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-green-50 p-3 rounded-lg text-center">
+                                    <p className="text-xs text-gray-500">Revenue</p>
+                                    <p className="text-lg font-bold text-green-600">
+                                        {formatCurrency(selectedTourForInfo.total_revenue || 0)}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        ({selectedTourForInfo.booked_seats || 0} booked × {formatCurrency(selectedTourForInfo.final_price)})
+                                    </p>
+                                </div>
+                                <div className="bg-red-50 p-3 rounded-lg text-center">
+                                    <p className="text-xs text-gray-500">Expenses</p>
+                                    <p className="text-lg font-bold text-red-600">{formatCurrency(selectedTourForInfo.total_expenses || 0)}</p>
+                                </div>
+                                <div className="bg-blue-50 p-3 rounded-lg text-center">
+                                    <p className="text-xs text-gray-500">Profit</p>
+                                    <p className="text-lg font-bold text-blue-600">
+                                        {formatCurrency((selectedTourForInfo.total_revenue || 0) - (selectedTourForInfo.total_expenses || 0))}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tour Statistics */}
+                        <div>
+                            <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
+                                <FaUsers className="text-primary-600" /> Tour Statistics
+                            </h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <p className="text-xs text-gray-500">Total Seats</p>
+                                    <p className="font-semibold">{selectedTourForInfo.total_seats}</p>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <p className="text-xs text-gray-500">Booked Seats</p>
+                                    <p className="font-semibold text-green-600">{selectedTourForInfo.booked_seats || 0}</p>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <p className="text-xs text-gray-500">Available Seats (at start)</p>
+                                    <p className="font-semibold">{selectedTourForInfo.available_seats}</p>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <p className="text-xs text-gray-500">Price per Person</p>
+                                    <p className="font-semibold">{formatCurrency(selectedTourForInfo.price_per_person)}</p>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <p className="text-xs text-gray-500">Discount</p>
+                                    <p className="font-semibold">{selectedTourForInfo.discount_percentage}%</p>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <p className="text-xs text-gray-500">Final Price per Person</p>
+                                    <p className="font-semibold text-primary-600">{formatCurrency(selectedTourForInfo.final_price)}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Itinerary Summary */}
+                        {selectedTourForInfo.destinations && selectedTourForInfo.destinations.length > 0 && (
+                            <div>
+                                <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
+                                    <FaMapMarkerAlt className="text-primary-600" /> Itinerary Summary
+                                </h3>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {selectedTourForInfo.destinations.map((dest, idx) => (
+                                        <div key={idx} className="bg-gray-50 p-2 rounded-lg">
+                                            <p className="font-medium text-sm">Day {dest.order}: {dest.destination_details?.name}</p>
+                                            <p className="text-xs text-gray-500">{dest.arrival_date} - {dest.departure_date}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Dates */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-xs text-gray-500">Created At</p>
+                                <p className="text-sm">{formatDate(selectedTourForInfo.created_at)}</p>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-xs text-gray-500">Last Updated</p>
+                                <p className="text-sm">{formatDate(selectedTourForInfo.updated_at)}</p>
+                            </div>
+                        </div>
+
+                        <Button type="button" variant="secondary" onClick={() => { setShowInfoModal(false); setSelectedTourForInfo(null); }} fullWidth>
+                            Close
+                        </Button>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

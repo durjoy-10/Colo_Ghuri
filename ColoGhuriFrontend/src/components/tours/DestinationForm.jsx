@@ -14,6 +14,8 @@ const DestinationForm = ({ tourId, onClose, onSuccess }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showFoodModal, setShowFoodModal] = useState(false);
     const [selectedDestination, setSelectedDestination] = useState(null);
+    const [loadingAdd, setLoadingAdd] = useState(false);
+    const [loadingFood, setLoadingFood] = useState(false);
     const [formData, setFormData] = useState({
         destination: '',
         order: '',
@@ -30,8 +32,6 @@ const DestinationForm = ({ tourId, onClose, onSuccess }) => {
         meal_items: '',
         dietary_options: ''
     });
-    const [loadingAdd, setLoadingAdd] = useState(false);
-    const [loadingFood, setLoadingFood] = useState(false);
 
     useEffect(() => {
         if (tourId) {
@@ -42,19 +42,34 @@ const DestinationForm = ({ tourId, onClose, onSuccess }) => {
 
     const fetchDestinations = async () => {
         try {
-            const data = await get(`/tours/${tourId}/destinations/`);
-            setDestinations(data || []);
+            const data = await get(`/tours/${tourId}/destinations/`, {}, false);
+            // Ensure data is an array
+            if (data && Array.isArray(data)) {
+                setDestinations(data);
+            } else if (data && data.results && Array.isArray(data.results)) {
+                setDestinations(data.results);
+            } else {
+                setDestinations([]);
+            }
         } catch (error) {
             console.error('Error fetching destinations:', error);
+            setDestinations([]);
         }
     };
 
     const fetchAllDestinations = async () => {
         try {
-            const data = await get('/destinations/');
-            setAllDestinations(data.results || data);
+            const data = await get('/destinations/', {}, false);
+            if (data && data.results && Array.isArray(data.results)) {
+                setAllDestinations(data.results);
+            } else if (data && Array.isArray(data)) {
+                setAllDestinations(data);
+            } else {
+                setAllDestinations([]);
+            }
         } catch (error) {
             console.error('Error fetching all destinations:', error);
+            setAllDestinations([]);
         }
     };
 
@@ -191,7 +206,7 @@ const DestinationForm = ({ tourId, onClose, onSuccess }) => {
                 </div>
 
                 {/* Destinations List */}
-                {destinations.length === 0 ? (
+                {!destinations || destinations.length === 0 ? (
                     <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
                         <FaMapMarkerAlt className="text-4xl mx-auto mb-2 text-gray-300" />
                         <p>No destinations added yet.</p>
@@ -200,10 +215,10 @@ const DestinationForm = ({ tourId, onClose, onSuccess }) => {
                 ) : (
                     <div className="space-y-4 max-h-96 overflow-y-auto">
                         {destinations.map((dest, idx) => (
-                            <div key={dest.id} className="border rounded-lg overflow-hidden">
+                            <div key={dest.id || idx} className="border rounded-lg overflow-hidden">
                                 <div className="bg-gray-50 p-4 flex flex-wrap justify-between items-center gap-3">
                                     <div>
-                                        <h4 className="font-semibold">Day {dest.order}: {dest.destination_details?.name}</h4>
+                                        <h4 className="font-semibold">Day {dest.order}: {dest.destination_details?.name || 'Unknown Destination'}</h4>
                                         <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
                                             <FaClock className="text-xs" />
                                             {dest.arrival_date} to {dest.departure_date}
@@ -237,7 +252,7 @@ const DestinationForm = ({ tourId, onClose, onSuccess }) => {
                                         </h5>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                             {dest.food_plans.map((food, fidx) => (
-                                                <div key={fidx} className="bg-gray-50 p-2 rounded relative group">
+                                                <div key={food.id || fidx} className="bg-gray-50 p-2 rounded relative group">
                                                     <button
                                                         onClick={() => removeFoodPlan(food.id)}
                                                         className="absolute top-1 right-1 text-red-500 opacity-0 group-hover:opacity-100 transition text-xs"
