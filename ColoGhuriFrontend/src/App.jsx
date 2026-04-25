@@ -11,7 +11,10 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 const Home = React.lazy(() => import('./pages/Home'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
+const CheckEmail = React.lazy(() => import('./pages/CheckEmail'));
+const VerifyEmail = React.lazy(() => import('./pages/VerifyEmail'));
 const GuideGroupRegister = React.lazy(() => import('./pages/GuideGroupRegister'));
+const GuideSetupPassword = React.lazy(() => import('./pages/guide/SetupPassword'));
 const Destinations = React.lazy(() => import('./pages/Destinations'));
 const DestinationDetail = React.lazy(() => import('./pages/DestinationDetail'));
 const Tours = React.lazy(() => import('./pages/Tours'));
@@ -25,8 +28,8 @@ const Contact = React.lazy(() => import('./pages/Contact'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 // Guide Pages
-const GuideManageTours = React.lazy(() => import('./pages/guide/ManageTours'));
 const GuideDashboard = React.lazy(() => import('./pages/guide/Dashboard'));
+const GuideManageTours = React.lazy(() => import('./pages/guide/ManageTours'));
 
 // Admin Pages
 const AdminDashboard = React.lazy(() => import('./pages/admin/Dashboard'));
@@ -49,7 +52,10 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/check-email" element={<CheckEmail />} />
+                <Route path="/verify-email/:token?" element={<VerifyEmail />} />
                 <Route path="/guide-group-register" element={<GuideGroupRegister />} />
+                <Route path="/guide/setup-password/:token/" element={<GuideSetupPassword />} />
                 <Route path="/destinations" element={<Destinations />} />
                 <Route path="/destinations/:id" element={<DestinationDetail />} />
                 <Route path="/tours" element={<Tours />} />
@@ -64,10 +70,10 @@ function App() {
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                 
                 {/* Guide Routes - Only for verified guides */}
-                <Route path="/guide/tours" element={<PrivateRoute guideOnly><GuideManageTours /></PrivateRoute>} />
                 <Route path="/guide/dashboard" element={<PrivateRoute guideOnly><GuideDashboard /></PrivateRoute>} />
+                <Route path="/guide/tours" element={<PrivateRoute guideOnly><GuideManageTours /></PrivateRoute>} />
                 
-                {/* Admin Routes */}
+                {/* Admin Routes - Only for admin users */}
                 <Route path="/admin" element={<PrivateRoute adminOnly><AdminDashboard /></PrivateRoute>} />
                 <Route path="/admin/destinations" element={<PrivateRoute adminOnly><AdminDestinations /></PrivateRoute>} />
                 <Route path="/admin/tours" element={<PrivateRoute adminOnly><AdminTours /></PrivateRoute>} />
@@ -91,9 +97,11 @@ function App() {
                 borderRadius: '12px',
               },
               success: {
+                duration: 3000,
                 iconTheme: { primary: '#10B981', secondary: '#fff' },
               },
               error: {
+                duration: 4000,
                 iconTheme: { primary: '#EF4444', secondary: '#fff' },
               },
             }}
